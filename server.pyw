@@ -108,25 +108,30 @@ def index():
                 -webkit-text-size-adjust: 100%;
             }
             .container { 
-                background: #232323; padding: 20px; 
+                background: #232323;
+                padding: 20px; 
                 box-sizing: border-box;
                 min-height: 100vh;
             }
             h1 { 
-                color: #ff5252; text-align: center;
+                color: #ff5252;
+                text-align: center;
                 font-size: 2em;
                 margin-top: 0;
                 padding-top: 20px;
             }
             a { 
-                color: #90caf9; text-decoration: none;
+                color: #90caf9;
+                text-decoration: none;
             }
             ol {
-                padding-left: 40px; max-width: 800px;
+                padding-left: 40px;
+                max-width: 800px;
                 margin: 20px auto;
             }
             li {
-                background: #333; margin-bottom: 12px;
+                background: #333;
+                margin-bottom: 12px;
                 border-radius: 8px;
                 transition: transform 0.2s ease;
             }
@@ -134,20 +139,23 @@ def index():
                 transform: scale(1.02);
             }
             li a {
-                display: block; padding: 18px 20px;
+                display: block;
+                padding: 18px 20px;
                 font-size: 1.1em;
             }
             .button-container {
-                text-align: center; margin-top: 30px;
+                text-align: center;
+                margin-top: 30px;
                 padding-bottom: 20px;
                 display: flex;
                 flex-direction: row; /* Düğmeleri yan yana getirmek için değiştirildi */
-                flex-wrap: wrap; /* Küçük ekranlarda alt satıra indirir */
+                flex-wrap: wrap;
                 gap: 15px;
                 justify-content: center; /* Yatayda ortalamak için eklendi */
             }
             .edit-link a {
-                display: inline-block; background: #90caf9;
+                display: inline-block;
+                background: #90caf9;
                 color: #181818;
                 padding: 12px 25px;
                 border-radius: 8px;
@@ -155,10 +163,12 @@ def index():
                 transition: background-color 0.2s ease;
             }
             .edit-link a:hover {
-                background: #64b5f6; text-decoration: none;
+                background: #64b5f6;
+                text-decoration: none;
             }
             .shutdown-link a {
-                display: inline-block; background: #B22222;
+                display: inline-block;
+                background: #B22222;
                 color: white;
                 padding: 12px 25px;
                 border-radius: 8px;
@@ -166,14 +176,16 @@ def index():
                 transition: background-color 0.2s ease;
             }
             .shutdown-link a:hover {
-                background: #C53333; text-decoration: none;
+                background: #C53333;
+                text-decoration: none;
             }
             
             @media screen and (max-width: 600px) {
                 h1 { font-size: 1.7em; }
                 ol { padding-left: 30px; }
                 li a { 
-                    font-size: 1.2em; padding: 20px;
+                    font-size: 1.2em;
+                    padding: 20px;
                 }
             }
         </style>
@@ -202,9 +214,9 @@ def index():
 
 @app.route('/editor')
 def editor():
+    # editor.html dosyasının ana dizinde olduğunu varsayar
     return send_from_directory('.', 'editor.html')
 
-# ... (dosyanın geri kalanı aynı)
 @app.route('/api/channels', methods=['GET', 'POST'])
 def api_channels():
     if request.method == 'GET':
@@ -430,11 +442,54 @@ def api_youtube_channel_search():
     else:
         return jsonify({"error": "Kanal bulunamadı."}), 404
 
+# ===================================================================
+# === YENİ YARDIMCI FONKSİYON =======================================
+# ===================================================================
+def serve_offline_stream():
+    """'Yayın Yok' master playlist'ini okur ve bir Flask Response olarak döndürür."""
+    # Bu dosya github.pyw tarafından oluşturulur ve mutlak GitHub URL'leri içerir
+    offline_playlist_path = os.path.join('offline_stream', 'offline_master.m3u8')
+    try:
+        with open(offline_playlist_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        log("Bir kanal için 'Yayın Yok' (offline) akışının içeriği sunuluyor.")
+        return Response(content, content_type='application/vnd.apple.mpegurl')
+    except FileNotFoundError:
+        log(f"KRİTİK HATA: {offline_playlist_path} dosyası bulunamadı! github.pyw scriptini çalıştırdığınızdan emin olun.")
+        # Bu, yalnızca offline_master.m3u8 dosyası eksikse görünür
+        return "Çevrimdışı akış dosyası sunucuda eksik. Lütfen 'github.pyw' scriptini çalıştırın.", 404
+    except Exception as e:
+        log(f"Offline stream sunulurken hata oluştu: {e}")
+        return "Sunucu hatası (offline stream).", 500
+# ===================================================================
+# === SON ===========================================================
+# ===================================================================
+
+
+@app.route('/offline_stream/<path:filename>')
+def offline_stream_files(filename):
+    """
+    Çevrimdışı 'Yayın Yok' HLS segmentlerini ve playlistlerini sunar.
+    NOT: Bu rota artık ana hata yönetimi için kullanılmıyor, ancak
+    github.pyw tarafından oluşturulan offline_master.m3u8 (GitHub linkli)
+    içeriği sunulduğu için, istemciler segmentleri (.ts) doğrudan GitHub'dan 
+    çekecektir. Bu rota yine de bir yedek olarak veya
+    yerel testler için tutulabilir.
+    """
+    log(f"Çevrimdışı akış dosyası isteniyor (eski yol): {filename}")
+    return send_from_directory('offline_stream', filename, cache_timeout=0)
+
+
 @app.route('/<m3u8_file>')
 def stream_m3u8(m3u8_file):
     if not m3u8_file.endswith('.m3u8'):
         abort(404)
         
+    # 'offline_master.m3u8' için özel kontrol (doğrudan istek gelirse)
+    if m3u8_file == "offline_master.m3u8":
+        log("Offline master playlist doğrudan istendi...")
+        return serve_offline_stream()
+
     # Yeni obje formatına göre arama
     channel_info = next((ch for ch in app.config.get('CHANNELS', [])
                          if f"{sanitize_filename(ch.get('name', 'INVALID_NAME')).upper()}.m3u8" == m3u8_file), None)
@@ -463,9 +518,16 @@ def stream_m3u8(m3u8_file):
         log(f"YouTube kanalı/videosu işleniyor: {channel_name} ({channel_id})")
         m3u8_url = get_youtube_m3u8_url(channel_id)
         
+    # ===================================================================
+    # === GÜNCELLENMİŞ HATA YÖNETİMİ ===================================
+    # ===================================================================
     if not m3u8_url:
-        log(f"'{channel_name}' için nihai m3u8 URL'si alınamadı.")
-        abort(404)
+        log(f"'{channel_name}' için nihai m3u8 URL'si alınamadı. 'Yayın Yok' içeriği sunuluyor.")
+        # Hata vermek veya yönlendirmek yerine offline akışın İÇERİĞİNİ sun
+        return serve_offline_stream()
+    # ===================================================================
+    # === SON ===========================================================
+    # ===================================================================
         
     log(f"Alınan M3U8 adresi: {m3u8_url}")
 
@@ -513,7 +575,7 @@ def stream_m3u8(m3u8_file):
                 highest_stream = max(streams, key=lambda x: int(x[2].split('x')[1]))
                 new_m3u8_content = ['#EXTM3U', '#EXT-X-INDEPENDENT-SEGMENTS', highest_stream[0], highest_stream[1]]
             except Exception as e:
-                log(f"En yüksek çözünürlük bulunamadı ({e}), ilk akış seçiliyor.")
+                log(f"En yüksek çözürlük bulunamadı ({e}), ilk akış seçiliyor.")
                 new_m3u8_content = ['#EXTM3U', '#EXT-X-INDEPENDENT-SEGMENTS', streams[0][0], streams[0][1]]
         else:
             new_m3u8_content = ['#EXTM3U', '#EXT-X-INDEPENDENT-SEGMENTS']
@@ -522,9 +584,16 @@ def stream_m3u8(m3u8_file):
 
         return Response('\n'.join(new_m3u8_content), content_type='application/vnd.apple.mpegurl')
     
+    # ===================================================================
+    # === GÜNCELLENMİŞ HATA YÖNETİMİ ===================================
+    # ===================================================================
     except requests.RequestException as e:
-        log(f"Nihai m3u8 içeriği indirilemedi ({m3u8_url}): {e}")
-        abort(404)
+        log(f"Nihai m3u8 içeriği indirilemedi ({m3u8_url}): {e}. 'Yayın Yok' içeriği sunuluyor.")
+        # Hata vermek veya yönlendirmek yerine offline akışın İÇERİĞİNİ sun
+        return serve_offline_stream()
+    # ===================================================================
+    # === SON ===========================================================
+    # ===================================================================
 
 def delayed_shutdown():
     time.sleep(1)
@@ -543,5 +612,7 @@ def page_not_found(e):
 
 if __name__ == "__main__":
     load_config()
+    # 'offline_stream' klasörünün var olduğundan emin ol
+    os.makedirs("offline_stream", exist_ok=True)
     log("Flask streaming server başlatılıyor: http://0.0.0.0:5000/")
     app.run(host="0.0.0.0", port=5000)

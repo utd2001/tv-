@@ -214,16 +214,67 @@ def get_resolution_label(height):
     else:
         return " SD"
 
+# ===================================================================
+# === YENİ FONKSİYON (ADIM 2) =======================================
+# ===================================================================
+def generate_offline_playlist(user, repo):
+    """Mutlak GitHub URL'leri ile offline_master.m3u8 dosyasını oluşturur."""
+    log("Mutlak URL'ler ile 'offline_master.m3u8' oluşturuluyor...")
+    # 'offline_stream' klasörünün var olduğundan emin ol
+    os.makedirs("offline_stream", exist_ok=True)
+    
+    base_url = f"https://raw.githubusercontent.com/{user}/{repo}/main/offline_stream"
+    
+    content = [
+        "#EXTM3U",
+        f'#EXT-X-STREAM-INF:PROGRAM-ID=1,AVERAGE-BANDWIDTH=4000000,BANDWIDTH=4400000,NAME="1080p",RESOLUTION=1920x1080',
+        f"{base_url}/1080p/index.m3u8",
+        f'#EXT-X-STREAM-INF:PROGRAM-ID=1,AVERAGE-BANDWIDTH=2000000,BANDWIDTH=2200000,NAME="720p",RESOLUTION=1280x720',
+        f"{base_url}/720p/index.m3u8",
+        f'#EXT-X-STREAM-INF:PROGRAM-ID=1,AVERAGE-BANDWIDTH=900000,BANDWIDTH=1000000,NAME="480p",RESOLUTION=854x480',
+        f"{base_url}/480p/index.m3u8",
+        f'#EXT-X-STREAM-INF:PROGRAM-ID=1,AVERAGE-BANDWIDTH=500000,BANDWIDTH=550000,NAME="360p",RESOLUTION=640x360',
+        f"{base_url}/360p/index.m3u8",
+        f'#EXT-X-STREAM-INF:PROGRAM-ID=1,AVERAGE-BANDWIDTH=300000,BANDWIDTH=330000,NAME="240p",RESOLUTION=426x240',
+        f"{base_url}/240p/index.m3u8",
+        f'#EXT-X-STREAM-INF:PROGRAM-ID=1,AVERAGE-BANDWIDTH=150000,BANDWIDTH=165000,NAME="144p",RESOLUTION=256x144',
+        f"{base_url}/144p/index.m3u8"
+    ]
+    
+    try:
+        # Bu dosyayı server.pyw'nin okuması için offline_stream klasörüne kaydet
+        with open(os.path.join("offline_stream", "offline_master.m3u8"), "w", encoding="utf-8") as f:
+            f.write("\n".join(content))
+        log("'offline_master.m3u8' başarıyla oluşturuldu.")
+    except IOError as e:
+        log(f"Offline master playlist yazılırken hata: {e}")
+# ===================================================================
+# === SON ===========================================================
+# ===================================================================
+
+# ===================================================================
+# === GÜNCELLENMİŞ FONKSİYON (ADIM 2) ===============================
+# ===================================================================
 def generate_master_playlist(channel_data, user, repo):
     base_url = f"https://raw.githubusercontent.com/{user}/{repo}/main/m3u8"
+    # Offline stream için mutlak URL
+    base_offline_url = f"https://raw.githubusercontent.com/{user}/{repo}/main/offline_stream/offline_master.m3u8"
+    
     playlist_content = ['#EXTM3U']
     for data in channel_data:
         channel_name = data['name']
         resolution_label = data['label']
+        is_offline = data.get('is_offline', False) # Değişiklik
 
-        sanitized_name = sanitize_filename(channel_name).upper()
-        file_name = f"{sanitized_name}.m3u8"
-        full_url = f"{base_url}/{file_name}"
+        if is_offline:
+            # Kanal çevrimdışıysa, offline master playlist'in mutlak URL'sini kullan
+            full_url = base_offline_url
+            log(f"'{channel_name}' çevrimdışı, offline master playlist'e yönlendiriliyor.")
+        else:
+            # Kanal çevrimiçiyse, normal m3u8 dosyasının URL'sini kullan
+            sanitized_name = sanitize_filename(channel_name).upper()
+            file_name = f"{sanitized_name}.m3u8"
+            full_url = f"{base_url}/{file_name}"
 
         final_channel_name = f"{channel_name}{resolution_label}"
         extinf_line = f'#EXTINF:-1,{final_channel_name}'
@@ -236,6 +287,9 @@ def generate_master_playlist(channel_data, user, repo):
         log("Ana playlist dosyası 'tv.m3u8' başarıyla oluşturuldu/güncellendi.")
     except IOError as e:
         log(f"Ana playlist dosyası yazılırken hata: {e}")
+# ===================================================================
+# === SON ===========================================================
+# ===================================================================
 
 channels_config, _ = load_config()
 channels = []
@@ -245,7 +299,8 @@ for item in channels_config:
         continue
     sanitized_name = sanitize_filename(name).upper()
     url = f"http://{SERVER_HOST}:5000/{sanitized_name}.m3u8"
-    channels.append((name, url)) # Bu (name, url) listesi olarak kalabilir, sadece sunucuyu sorgulamak için kullanılıyor.
+    channels.append((name, url)) 
+
 def wait_for_server(base_url: str, timeout_seconds: int = 120, interval_seconds: int = 2) -> bool:
     start_time = time.time()
     while time.time() - start_time < timeout_seconds:
@@ -299,10 +354,17 @@ for name, hls_url in channels:
             hls_response = None
             time.sleep(2)
 
+    # ===================================================================
+    # === GÜNCELLENMİŞ BLOK (ADIM 2) ====================================
+    # ===================================================================
     if hls_response is None:
-        log(f"Kanal alınamadı, denemeler tükendi ({name})")
-        channel_data_for_playlist.append({'name': name, 'label': ''})
+        log(f"Kanal alınamadı, denemeler tükendi ({name}). Offline stream'e yönlendirilecek.")
+        # Değişiklik: 'is_offline' anahtarı eklendi
+        channel_data_for_playlist.append({'name': name, 'label': '', 'is_offline': True})
         continue
+    # ===================================================================
+    # === SON ===========================================================
+    # ===================================================================
 
     max_height = 0
     if hls_response.text:
@@ -336,9 +398,16 @@ for name, hls_url in channels:
                 log(f"URL'den tahmini çözünürlük bulundu: {found_height}p")
                 max_height = found_height
     
+    # ===================================================================
+    # === GÜNCELLENMİŞ BLOK (ADIM 2) ====================================
+    # ===================================================================
     resolution_label = get_resolution_label(max_height)
-    channel_data_for_playlist.append({'name': name, 'label': resolution_label})
+    # Değişiklik: 'is_offline' anahtarı eklendi
+    channel_data_for_playlist.append({'name': name, 'label': resolution_label, 'is_offline': False})
     log(f"'{name}' için en yüksek çözünürlük bulundu: {max_height}p, Etiket: '{resolution_label.strip()}'")
+    # ===================================================================
+    # === SON ===========================================================
+    # ===================================================================
 
     filename = f"{sanitize_filename(name).upper()}.m3u8"
     filepath = os.path.join(M3U8_DIR, filename)
@@ -351,11 +420,20 @@ for name, hls_url in channels:
         log(f"Dosya yazma hatası ({name}): {e}")
         continue
 
+# ===================================================================
+# === GÜNCELLENMİŞ BLOK (ADIM 2) ====================================
+# ===================================================================
 github_user, github_repo = get_github_details_from_remote()
 if github_user and github_repo:
+    # Önce 'offline_master.m3u8' dosyasını (yeniden) oluştur
+    generate_offline_playlist(github_user, github_repo) 
+    # Sonra ana 'tv.m3u8' dosyasını oluştur
     generate_master_playlist(channel_data_for_playlist, github_user, github_repo)
 else:
     log("GitHub kullanıcı/repo bilgisi alınamadığı için ana playlist oluşturulamadı.")
+# ===================================================================
+# === SON ===========================================================
+# ===================================================================
 
 try:
     if not os.path.exists(".git"):
@@ -374,7 +452,8 @@ try:
          log("Değişiklik yok, Git işlemleri atlanıyor")
     else:
         log("Git değişiklikleri:\n" + result.stdout.strip())
-        subprocess.run(["git", "add", "."], check=True, capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
+        # Değişiklik: Sadece m3u8, offline_stream, tv.m3u8 ve config.json'u ekle
+        subprocess.run(["git", "add", M3U8_DIR, "offline_stream", "tv.m3u8", CONFIG_FILE, "log.txt"], check=True, capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
         timestamp = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
         try:
             subprocess.run(["git", "commit", "-m", timestamp], check=True, capture_output=True, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
@@ -417,14 +496,15 @@ try:
         if not try_push():
             raise RuntimeError("Git push tüm yöntemlerle başarısız oldu")
 
+    
         
-        try:
-            shutdown_url = f"http://{SERVER_HOST}:5000/kapat"
-            shutdown_response = requests.get(shutdown_url, timeout=30)
-            shutdown_response.raise_for_status()
-            log(f"Sunucu kapatma isteği gönderildi: {shutdown_url} - Status: {shutdown_response.status_code}")
-        except Exception as e:
-            log(f"Sunucu kapatma hatası: {e}")
+    try:
+        shutdown_url = f"http://{SERVER_HOST}:5000/kapat"
+        shutdown_response = requests.get(shutdown_url, timeout=30)
+        shutdown_response.raise_for_status()
+        log(f"Sunucu kapatma isteği gönderildi: {shutdown_url} - Status: {shutdown_response.status_code}")
+    except Exception as e:
+        log(f"Sunucu kapatma hatası: {e}")
 
 except subprocess.CalledProcessError as e:
     log(f"Git komut hatası: {e.stderr or e.stdout}")
