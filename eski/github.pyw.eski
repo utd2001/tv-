@@ -1,0 +1,249 @@
+import subprocess
+import requests
+import re
+import socket
+from datetime import datetime
+import os
+import time
+from urllib.parse import urlparse
+from requests.exceptions import HTTPError, ConnectionError, Timeout, RequestException
+import json
+
+def log(message):
+    timestamp = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+    try:
+        with open("log.txt", "a", encoding="utf-8") as f:
+            f.write(f"[{timestamp}] {message}\n")
+    except IOError as e:
+        print(f"Log dosyasına yazma hatası: {e}")
+
+def get_ipv4_address():
+    """Bilgisayarın IPv4 adresini döndürür (önce socket, sonra ipconfig)."""
+    try:
+        # 1. socket ile almayı dene
+        hostname = socket.gethostname()
+        ip = socket.gethostbyname(hostname)
+        if ip and not ip.startswith("127."):
+            return ip
+    except Exception:
+        pass
+
+    try:
+        # 2. ipconfig çıktısını tara (Türkçe & İngilizce destekli)
+        result = subprocess.run(
+            ["ipconfig"],
+            capture_output=True,
+            text=True,
+            creationflags=subprocess.CREATE_NO_WINDOW
+        )
+        matches = re.findall(r"(?:IPv4.*?:\s*)(\d+\.\d+\.\d+\.\d+)", result.stdout)
+        if matches:
+            return matches[0]
+    except Exception:
+        pass
+
+    # 3. fallback → localhost
+    return "127.0.0.1"
+
+SERVER_HOST = get_ipv4_address()
+log(f"Kullanılan SERVER_HOST: {SERVER_HOST}")
+
+def sanitize_filename(filename):
+    replacements = {
+        'ç': 'c', 'ğ': 'g', 'ı': 'i', 'ö': 'o', 'ş': 's', 'ü': 'u',
+        'Ç': 'C', 'Ğ': 'G', 'İ': 'I', 'Ö': 'O', 'Ş': 'S', 'Ü': 'U'
+    }
+    try:
+        for turkish, english in replacements.items():
+            filename = filename.replace(turkish, english)
+        filename = re.sub(r'\s+', '_', filename)
+        filename = re.sub(r'[^A-Za-z0-9_.-]', '', filename)
+        if not filename:
+            raise ValueError("Dosya adı boş olamaz")
+        return filename
+    except Exception as e:
+        log(f"Dosya adı temizleme hatası: {e}")
+        raise
+
+def load_channels_from_config():
+    try:
+        with open("config.json", "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data.get("channels", [])
+    except Exception as e:
+        log(f"Config dosyasından kanallar okunamadı: {e}")
+        return []
+
+channels_config = load_channels_from_config()
+channels = []
+for name, _ in channels_config:
+    sanitized_name = sanitize_filename(name)
+    url = f"http://{SERVER_HOST}:5000/{sanitized_name}.m3u8"
+    channels.append((name, url))
+
+
+def wait_for_server(base_url: str, timeout_seconds: int = 120, interval_seconds: int = 2) -> bool:
+    start_time = time.time()
+    while time.time() - start_time < timeout_seconds:
+        try:
+            resp = requests.get(base_url, timeout=5)
+            if resp.status_code < 500:
+                return True
+        except (ConnectionError, Timeout):
+            pass
+        time.sleep(interval_seconds)
+    return False
+
+def get_base_url(sample_url: str) -> str:
+    parsed = urlparse(sample_url)
+    return f"{parsed.scheme}://{parsed.hostname}:{parsed.port or 5000}/"
+
+try:
+    base_url = get_base_url(channels[0][1]) if channels else f"http://{SERVER_HOST}:5000/"
+    if not wait_for_server(base_url):
+        log(f"Sunucuya bağlanılamadı: {base_url} (hazır değil)")
+    else:
+        log(f"Sunucu hazır: {base_url}")
+except Exception as e:
+    log(f"Sunucu hazırlık kontrolü hatası: {e}")
+
+for name, hls_url in channels:
+    log(f"İşleniyor: {name} - {hls_url}")
+    max_attempts = 6
+    attempt = 0
+    hls_response = None
+    while attempt < max_attempts and hls_response is None:
+        attempt += 1
+        try:
+            hls_response = requests.get(hls_url, timeout=60)
+            hls_response.raise_for_status()
+        except (ConnectionError, Timeout) as e:
+            log(f"Deneme {attempt}/{max_attempts} bağlantı sorunu ({name}): {e}")
+            hls_response = None
+            time.sleep(3)
+        except HTTPError as e:
+            log(f"Deneme {attempt}/{max_attempts} HTTP hatası ({name}): {e}")
+            hls_response = None
+            time.sleep(2)
+        except RequestException as e:
+            log(f"Deneme {attempt}/{max_attempts} genel istek hatası ({name}): {e}")
+            hls_response = None
+            time.sleep(2)
+
+    if hls_response is None:
+        log(f"Kanal alınamadı, denemeler tükendi ({name})")
+        continue
+
+    filename = sanitize_filename(f"{name}.m3u8")
+    try:
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(hls_response.text)
+        log(f"Kaydedildi: {filename}")
+    except IOError as e:
+        log(f"Dosya yazma hatası ({name}): {e}")
+        continue
+
+try:
+    if not os.path.exists(".git"):
+        log("Hata: Git deposu bulunamadı")
+        raise RuntimeError("Git deposu bulunamadı")
+
+    result = subprocess.run(
+        ["git", "status", "--porcelain"],
+        check=True,
+        capture_output=True,
+        text=True,
+        creationflags=subprocess.CREATE_NO_WINDOW
+    )
+
+    if not result.stdout.strip():
+        log("Değişiklik yok, Git işlemleri atlanıyor")
+    else:
+        log("Git değişiklikleri:\n" + result.stdout.strip())
+        subprocess.run(
+            ["git", "add", "."],
+            check=True,
+            capture_output=True,
+            text=True,
+            creationflags=subprocess.CREATE_NO_WINDOW
+        )
+        timestamp = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+        try:
+            subprocess.run(
+                ["git", "commit", "-m", timestamp],
+                check=True,
+                capture_output=True,
+                text=True,
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
+            log("Commit başarılı")
+        except subprocess.CalledProcessError as e:
+            if "nothing to commit" in (e.stderr or ""):
+                log("Commit atlandı (değişiklik yok)")
+            else:
+                log(f"Commit hatası: {e.stderr or e.stdout}")
+                raise
+
+        def try_push():
+            try:
+                push_result = subprocess.run(
+                    ["git", "push"],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    creationflags=subprocess.CREATE_NO_WINDOW
+                )
+                log(push_result.stdout.strip() or "git push başarılı")
+                return True
+            except subprocess.CalledProcessError as e:
+                error_msg = e.stderr or e.stdout
+                log(f"git push hatası: {error_msg}")
+                if "fetch first" in error_msg or "rejected" in error_msg:
+                    log("Push reddedildi, önce pull --rebase deneniyor...")
+                    try:
+                        subprocess.run(
+                            ["git", "pull", "--rebase", "origin", "main"],
+                            check=True, capture_output=True, text=True,
+                            creationflags=subprocess.CREATE_NO_WINDOW
+                        )
+                        subprocess.run(
+                            ["git", "push"],
+                            check=True, capture_output=True, text=True,
+                            creationflags=subprocess.CREATE_NO_WINDOW
+                        )
+                        log("Pull + Push başarılı")
+                        return True
+                    except subprocess.CalledProcessError as e2:
+                        log(f"Pull + Push başarısız: {e2.stderr or e2.stdout}")
+                        log("Son çare: force push deneniyor...")
+                        try:
+                            subprocess.run(
+                                ["git", "push", "--force"],
+                                check=True, capture_output=True, text=True,
+                                creationflags=subprocess.CREATE_NO_WINDOW
+                            )
+                            log("Force push başarılı")
+                            return True
+                        except subprocess.CalledProcessError as e3:
+                            log(f"Force push da başarısız: {e3.stderr or e3.stdout}")
+                            return False
+                else:
+                    return False
+
+        if not try_push():
+            raise RuntimeError("Git push tüm yöntemlerle başarısız oldu")
+
+        try:
+            shutdown_url = f"http://{SERVER_HOST}:5000/kapat"
+            shutdown_response = requests.get(shutdown_url, timeout=30)
+            shutdown_response.raise_for_status()
+            log(f"Sunucu kapatma isteği gönderildi: {shutdown_url} - Status: {shutdown_response.status_code}")
+        except Exception as e:
+            log(f"Sunucu kapatma hatası: {e}")
+
+except subprocess.CalledProcessError as e:
+    log(f"Git komut hatası: {e.stderr or e.stdout}")
+except RuntimeError as e:
+    log(str(e))
+except Exception as e:
+    log(f"Beklenmeyen hata: {e}")
