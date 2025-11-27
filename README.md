@@ -21,20 +21,20 @@
       <td>HALK TV</td>
       <td align='center'>🟢</td>
       <td align='center'>🟢</td>
-      <td align='center'>🔴</td>
-      <td align='center'>🟣</td>
-      <td><strong>YENİLE</strong></td>
-      <td>Yayın Hatası</td>
+      <td align='center'>🟢</td>
+      <td align='center'>🟢</td>
+      <td><strong>OYNAT</strong></td>
+      <td>Yayın Aktif</td>
     </tr>
     <tr>
       <td>2</td>
       <td>TELE2 HABER</td>
       <td align='center'>🔴</td>
       <td align='center'>🟢</td>
-      <td align='center'>🔴</td>
-      <td align='center'>🔴</td>
-      <td><strong>BEKLE</strong></td>
-      <td>Kanal Kapalı</td>
+      <td align='center'>🟢</td>
+      <td align='center'>🟢</td>
+      <td><strong>İZLE</strong></td>
+      <td>Kaynak Koptu</td>
     </tr>
     <tr>
       <td>3</td>
@@ -51,73 +51,73 @@
       <td>SÖZCÜ TV</td>
       <td align='center'>🟢</td>
       <td align='center'>🟢</td>
-      <td align='center'>🔴</td>
-      <td align='center'>🟣</td>
-      <td><strong>YENİLE</strong></td>
-      <td>Yayın Hatası</td>
+      <td align='center'>🟢</td>
+      <td align='center'>🟢</td>
+      <td><strong>OYNAT</strong></td>
+      <td>Yayın Aktif</td>
     </tr>
     <tr>
       <td>5</td>
       <td>MAVİ KARADENİZ TV</td>
       <td align='center'>🟢</td>
       <td align='center'>🟢</td>
-      <td align='center'>🔴</td>
-      <td align='center'>🟣</td>
-      <td><strong>YENİLE</strong></td>
-      <td>Yayın Hatası</td>
+      <td align='center'>🟢</td>
+      <td align='center'>🟢</td>
+      <td><strong>OYNAT</strong></td>
+      <td>Yayın Aktif</td>
     </tr>
     <tr>
       <td>6</td>
       <td>FOX TV</td>
       <td align='center'>🟢</td>
       <td align='center'>🟢</td>
-      <td align='center'>🔴</td>
-      <td align='center'>🟣</td>
-      <td><strong>YENİLE</strong></td>
-      <td>Yayın Hatası</td>
+      <td align='center'>🟢</td>
+      <td align='center'>🟢</td>
+      <td><strong>OYNAT</strong></td>
+      <td>Yayın Aktif</td>
     </tr>
     <tr>
       <td>7</td>
       <td>TV8</td>
       <td align='center'>🟢</td>
       <td align='center'>🟢</td>
-      <td align='center'>🔴</td>
-      <td align='center'>🟣</td>
-      <td><strong>YENİLE</strong></td>
-      <td>Yayın Hatası</td>
+      <td align='center'>🟢</td>
+      <td align='center'>🟢</td>
+      <td><strong>OYNAT</strong></td>
+      <td>Yayın Aktif</td>
     </tr>
     <tr>
       <td>8</td>
       <td>TV8.5</td>
       <td align='center'>🟢</td>
       <td align='center'>🟢</td>
-      <td align='center'>🔴</td>
-      <td align='center'>🟣</td>
-      <td><strong>YENİLE</strong></td>
-      <td>Yayın Hatası</td>
+      <td align='center'>🟢</td>
+      <td align='center'>🟢</td>
+      <td><strong>OYNAT</strong></td>
+      <td>Yayın Aktif</td>
     </tr>
     <tr>
       <td>9</td>
       <td>KANAL D</td>
       <td align='center'>🟢</td>
       <td align='center'>🟢</td>
-      <td align='center'>🔴</td>
-      <td align='center'>🟣</td>
-      <td><strong>YENİLE</strong></td>
-      <td>Yayın Hatası</td>
+      <td align='center'>🟢</td>
+      <td align='center'>🟢</td>
+      <td><strong>OYNAT</strong></td>
+      <td>Yayın Aktif</td>
     </tr>
     <tr>
       <td>10</td>
       <td>TEVE2</td>
       <td align='center'>🟢</td>
       <td align='center'>🟢</td>
-      <td align='center'>🔴</td>
-      <td align='center'>🟣</td>
-      <td><strong>YENİLE</strong></td>
-      <td>Yayın Hatası</td>
+      <td align='center'>🟢</td>
+      <td align='center'>🟢</td>
+      <td><strong>OYNAT</strong></td>
+      <td>Yayın Aktif</td>
     </tr>
     <tr>
-      <td colspan='8' align='center'>Son Güncelleme: 27.11.2025 22:40:45</td>
+      <td colspan='8' align='center'>Son Güncelleme: 27.11.2025 22:43:24</td>
     </tr>
   </tbody>
 </table>

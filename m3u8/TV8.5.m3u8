@@ -1,10 +1,10 @@
 #EXTM3U
 #EXT-X-INDEPENDENT-SEGMENTS
 #EXT-X-STREAM-INF:BANDWIDTH=2200000,AVERAGE-BANDWIDTH=2000000,RESOLUTION=1920x1080
-https://tv8.daioncdn.net/tv8bucuk/tv8bucuk_1080p.m3u8?&sid=7y8d5bfvp9dx&app=bf58ab52-4865-4c81-b223-26b41009801e&ce=3
+https://tv8.daioncdn.net/tv8bucuk/tv8bucuk_1080p.m3u8?&sid=7y8ddvk2t7bp&app=bf58ab52-4865-4c81-b223-26b41009801e&ce=3
 #EXT-X-STREAM-INF:BANDWIDTH=1050000,AVERAGE-BANDWIDTH=950000,RESOLUTION=1280x720
-https://tv8.daioncdn.net/tv8bucuk/tv8bucuk_720p.m3u8?&sid=7y8d5bfvp9dx&app=bf58ab52-4865-4c81-b223-26b41009801e&ce=3
+https://tv8.daioncdn.net/tv8bucuk/tv8bucuk_720p.m3u8?&sid=7y8ddvk2t7bp&app=bf58ab52-4865-4c81-b223-26b41009801e&ce=3
 #EXT-X-STREAM-INF:BANDWIDTH=800000,AVERAGE-BANDWIDTH=700000,RESOLUTION=854x480
-https://tv8.daioncdn.net/tv8bucuk/tv8bucuk_480p.m3u8?&sid=7y8d5bfvp9dx&app=bf58ab52-4865-4c81-b223-26b41009801e&ce=3
+https://tv8.daioncdn.net/tv8bucuk/tv8bucuk_480p.m3u8?&sid=7y8ddvk2t7bp&app=bf58ab52-4865-4c81-b223-26b41009801e&ce=3
 #EXT-X-STREAM-INF:BANDWIDTH=550000,AVERAGE-BANDWIDTH=500000,RESOLUTION=640x360
-https://tv8.daioncdn.net/tv8bucuk/tv8bucuk_360p.m3u8?&sid=7y8d5bfvp9dx&app=bf58ab52-4865-4c81-b223-26b41009801e&ce=3
+https://tv8.daioncdn.net/tv8bucuk/tv8bucuk_360p.m3u8?&sid=7y8ddvk2t7bp&app=bf58ab52-4865-4c81-b223-26b41009801e&ce=3
