@@ -117,7 +117,7 @@
       <td>Yayın Aktif</td>
     </tr>
     <tr>
-      <td colspan='8' align='center'>Son Güncelleme: 27.11.2025 22:43:24</td>
+      <td colspan='8' align='center'>Son Güncelleme: 27.11.2025 23:19:22</td>
     </tr>
   </tbody>
 </table>

@@ -1,6 +1,6 @@
 # Hatalı Kanallar
 
-**Son Güncelleme:** 27.11.2025 22:43:27
+**Son Güncelleme:** 27.11.2025 23:19:23
 
 **Toplam Hatalı Kanal:** 1
 
