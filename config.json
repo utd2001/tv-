@@ -1,0 +1,56 @@
+{
+    "ONLY_HIGHEST": 0,
+    "VIEW_MODE": 0,
+    "channels": [
+        {
+            "name": "HALK TV",
+            "url": "https://halktv-live.daioncdn.net/halktv/halktv.m3u8",
+            "auto": false
+        },
+        {
+            "name": "TELE2 HABER",
+            "url": "@tele2_haber",
+            "auto": false
+        },
+        {
+            "name": "BİRGÜN TV",
+            "url": "@birguntv",
+            "auto": false
+        },
+        {
+            "name": "SÖZCÜ TV",
+            "url": "ztmY_cCtUl0",
+            "auto": false
+        },
+        {
+            "name": "MAVİ KARADENİZ TV",
+            "url": "https://live.artidijitalmedya.com/artidijital_mavikaradeniz/mavikaradeniz/playlist.m3u8",
+            "auto": false
+        },
+        {
+            "name": "FOX TV",
+            "url": "https://www.nowtv.com.tr/canli-yayin",
+            "auto": false
+        },
+        {
+            "name": "TV8",
+            "url": "https://www.tv8.com.tr/canli-yayin",
+            "auto": false
+        },
+        {
+            "name": "TV8.5",
+            "url": "https://www.tv8bucuk.com/tv8-5-canli-yayin",
+            "auto": false
+        },
+        {
+            "name": "KANAL D",
+            "url": "https://www.kanald.com.tr/canli-yayin",
+            "auto": false
+        },
+        {
+            "name": "TEVE2",
+            "url": "https://www.teve2.com.tr/canli-yayin",
+            "auto": false
+        }
+    ]
+}
