@@ -170,178 +170,6 @@ def auto_update_channel_ids():
         
         if new_video_id and new_video_id != current_video_id:
             log(f"'{channel_name}' için yeni Video ID bulundu: {new_video_id}. Config güncelleniyor.")
-import subprocess
-import requests
-import re
-import socket
-from datetime import datetime
-import os
-import time
-from urllib.parse import urlparse
-from requests.exceptions import HTTPError, ConnectionError, Timeout, RequestException
-import json
-import copy
-
-M3U8_DIR = "m3u8"
-CONFIG_FILE = "config.json"
-
-def log(message):
-    timestamp = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
-    try:
-        with open("log.txt", "a", encoding="utf-8") as f:
-            f.write(f"[{timestamp}] {message}\n")
-    except IOError as e:
-        print(f"Log dosyasına yazma hatası: {e}")
-
-def get_ipv4_address():
-    try:
-        hostname = socket.gethostname()
-        ip = socket.gethostbyname(hostname)
-        if ip and not ip.startswith("127."):
-            return ip
-    except Exception:
-        pass
-    try:
-        result = subprocess.run(
-             ["ipconfig"],
-            capture_output=True,
-            text=True,
-            creationflags=subprocess.CREATE_NO_WINDOW
-        )
-        matches = re.findall(r"(?:IPv4.*?:\s*)(\d+\.\d+\d+\.\d+)", result.stdout)
-        if matches:
-            return matches[0]
-    except Exception:
-        pass
-    return "127.0.0.1"
-
-SERVER_HOST = get_ipv4_address()
-log(f"Kullanılan SERVER_HOST: {SERVER_HOST}")
-
-def sanitize_filename(filename):
-    replacements = {
-        'ç': 'c', 'ğ': 'g', 'ı': 'i', 'ö': 'o', 'ş': 's', 'ü': 'u',
-        'Ç': 'C', 'Ğ': 'G', 'İ': 'I', 'Ö': 'O', 'Ş': 'S', 'Ü': 'U'
-    }
-    try:
-        for turkish, english in replacements.items():
-            filename = filename.replace(turkish, english)
-        filename = re.sub(r'\s+', '_', filename)
-        filename = re.sub(r'[^A-Za-z0-9_.-]', '', filename)
-        if not filename:
-            raise ValueError("Dosya adı boş olamaz")
-        return filename
-    except Exception as e:
-        log(f"Dosya adı temizleme hatası: {e}")
-        raise
-
-def load_config():
-    """Config dosyasını yükler ve kanalları ve diğer ayarları döndürür."""
-    try:
-        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            only_highest = data.get("ONLY_HIGHEST", 1)
-            
-            channels_raw = data.get("channels", [])
-            migrated_channels = []
-
-            # Eski formattan (list) yeni formata (dict) geçiş ve uyumluluk
-            for ch in channels_raw:
-                if isinstance(ch, list):
-                    # Eski format: ["NAME", "URL", (opsiyonel) AUTO_BOOL]
-                    migrated_channels.append({
-                        "name": ch[0] if len(ch) > 0 else "",
-                        "url": ch[1] if len(ch) > 1 else "",
-                        "auto": ch[2] if len(ch) > 2 else False
-                    })
-                elif isinstance(ch, dict):
-                    # Yeni format: {"name": ..., "url": ..., "auto": ...}
-                    migrated_channels.append({
-                        "name": ch.get("name", ""),
-                        "url": ch.get("url", ""),
-                        "auto": ch.get("auto", False)
-                    })
-                    
-            return migrated_channels, only_highest
-            
-    except Exception as e:
-        log(f"Config dosyasından kanallar okunamadı: {e}")
-        return [], 1
-
-def save_config(channels, only_highest):
-    """Verilen kanal listesini ve ayarları config dosyasına kaydeder."""
-    try:
-        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-            config_data = {
-                "ONLY_HIGHEST": only_highest,
-                "channels": channels
-            }
-            json.dump(config_data, f, indent=4, ensure_ascii=False)
-            log("Config dosyası 'Oto' güncellemeleriyle kaydedildi.")
-    except Exception as e:
-        log(f"Config kaydetme hatası: {e}")
-
-def search_youtube_innertube(query):
-    """YouTube InnerTube API kullanarak canlı yayın araması yapar."""
-    log(f"InnerTube ile YouTube araması yapılıyor: '{query}'")
-    headers = {'origin': 'https://www.youtube.com', 'referer': 'https://www.youtube.com/', 'user-agent': 'Mozilla/5.0'}
-    payload = {
-        'context': {
-            'client': { 'clientName': 'WEB', 'clientVersion': '2.20240101.00.00' }
-        },
-        'query': query,
-        'params': 'EgJAAQ%3D%3D'
-    }
-    try:
-        response = requests.post('https://www.youtube.com/youtubei/v1/search', headers=headers, json=payload, timeout=20)
-        response.raise_for_status()
-        data = response.json()
-        contents = data['contents']['twoColumnSearchResultsRenderer']['primaryContents']['sectionListRenderer']['contents'][0]['itemSectionRenderer']['contents']
-        for item in contents:
-            if 'videoRenderer' in item:
-                video_id = item['videoRenderer'].get('videoId')
-                badges = item['videoRenderer'].get('badges', [])
-                is_live = any(b.get('metadataBadgeRenderer', {}).get('style') == 'BADGE_STYLE_TYPE_LIVE_NOW' for b in badges)
-                if video_id and is_live:
-                    log(f"Canlı yayın bulundu: Video ID = {video_id}")
-                    return video_id
-        for item in contents:
-            if 'videoRenderer' in item and item['videoRenderer'].get('videoId'):
-                video_id = item['videoRenderer']['videoId']
-                log(f"Canlı yayın bulunamadı, ilk sonuç döndürülüyor: Video ID = {video_id}")
-                return video_id
-    except Exception as e:
-        log(f"YouTube arama (InnerTube) hatası: {e}")
-    return None
-
-def auto_update_channel_ids():
-    """'Oto' olarak işaretlenmiş kanalların video ID'lerini günceller."""
-    log("Otomatik Video ID güncelleme süreci başlatılıyor...")
-    channels, only_highest = load_config()
-    original_channels = copy.deepcopy(channels)
-    
-    # Yeni obje formatına göre filtrele
-    channels_to_update = [channel for channel in channels if channel.get('auto', False)]
-    
-    if not channels_to_update:
-        log("'Oto' olarak işaretlenmiş kanal bulunamadı. Güncelleme atlanıyor.")
-        return False
-
-    log(f"{len(channels_to_update)} adet 'Oto' kanal güncellenecek.")
-
-    for channel in channels_to_update:
-        channel_name = channel.get('name', '')
-        if not channel_name:
-            continue
-            
-        log(f"'{channel_name}' için canlı yayın aranıyor...")
-        search_query = f"{channel_name} canlı yayını"
-        new_video_id = search_youtube_innertube(search_query)
-        
-        current_video_id = channel.get('url', '')
-        
-        if new_video_id and new_video_id != current_video_id:
-            log(f"'{channel_name}' için yeni Video ID bulundu: {new_video_id}. Config güncelleniyor.")
             channel['url'] = new_video_id # Objeyi güncelle
         elif new_video_id:
             log(f"'{channel_name}' için bulunan ID ({new_video_id}) zaten mevcut. Değişiklik yapılmadı.")
@@ -624,26 +452,37 @@ try:
         if not try_push():
             raise RuntimeError("Git push tüm yöntemlerle başarısız oldu")
 
-        
-        try:
-            shutdown_url = f"http://{SERVER_HOST}:5000/kapat"
-            shutdown_response = requests.get(shutdown_url, timeout=30)
-            shutdown_response.raise_for_status()
-            log(f"Sunucu kapatma isteği gönderildi: {shutdown_url} - Status: {shutdown_response.status_code}")
-        except Exception as e:
-            log(f"Sunucu kapatma hatası: {e}")
+    # Sunucuyu her durumda kapat
+    try:
+        shutdown_url = f"http://{SERVER_HOST}:5000/kapat"
+        shutdown_response = requests.get(shutdown_url, timeout=30)
+        shutdown_response.raise_for_status()
+        log(f"Sunucu kapatma isteği gönderildi: {shutdown_url} - Status: {shutdown_response.status_code}")
+    except Exception as e:
+        log(f"Sunucu kapatma hatası: {e}")
 
-        # Sunucuyu sadece gerekli durumlarda yeniden başlat
-        if config_updated or m3u8_files_updated:
-            log("Kritik değişiklikler (Config veya M3U8) tespit edildi. Sunucu yeniden başlatılıyor (5sn bekleme)...")
-            time.sleep(5)
+    # Sunucuyu sadece gerekli durumlarda yeniden başlat
+    if config_updated or m3u8_files_updated:
+        log("Kritik değişiklikler (Config veya M3U8) tespit edildi. Sunucu yeniden başlatılıyor (5sn bekleme)...")
+        time.sleep(5)
+        try:
+            subprocess.Popen(["pythonw", "server.pyw"], creationflags=subprocess.CREATE_NO_WINDOW)
+            log("Sunucu başlatma komutu gönderildi.")
+            
+            log("Sunucu 60 saniye çalıştırılacak...")
+            time.sleep(60)
+            
             try:
-                subprocess.Popen(["pythonw", "server.pyw"], creationflags=subprocess.CREATE_NO_WINDOW)
-                log("Sunucu başlatma komutu gönderildi.")
+                shutdown_url = f"http://{SERVER_HOST}:5000/kapat"
+                shutdown_response = requests.get(shutdown_url, timeout=30)
+                log(f"Sunucu 60sn sonra kapatıldı: {shutdown_response.status_code}")
             except Exception as e:
-                log(f"Sunucu başlatma hatası: {e}")
-        else:
-            log("Kritik değişiklik yok, sunucu yeniden başlatılmıyor.")
+                log(f"Sunucu 2. kapatma hatası: {e}")
+
+        except Exception as e:
+            log(f"Sunucu başlatma hatası: {e}")
+    else:
+        log("Kritik değişiklik yok, sunucu yeniden başlatılmıyor.")
 
 except subprocess.CalledProcessError as e:
     log(f"Git komut hatası: {e.stderr or e.stdout}")
